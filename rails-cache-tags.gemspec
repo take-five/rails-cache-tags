@@ -8,7 +8,7 @@ Gem::Specification.new do |gem|
   gem.summary       = %q{TODO: Write a gem summary}
   gem.homepage      = "https://github.com/take-five/rails-cache-tags"
 
-  gem.files         = %w(LICENSE README.md lib/**/*)
+  gem.files         = `git ls-files`.split($\)
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.name          = "rails-cache-tags"
   gem.require_paths = %W(lib)
