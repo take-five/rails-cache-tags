@@ -14,3 +14,14 @@ module ActiveSupport
     end
   end
 end
+
+if defined?(ActionController::Base)
+  class ActionController::Base < ActionController::Metal
+    def expire_fragments_by_tags *args
+      return unless cache_configured?
+
+      cache_store.delete_tag *args
+    end
+    alias expire_fragments_by_tag expire_fragments_by_tags
+  end
+end

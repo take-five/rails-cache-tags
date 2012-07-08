@@ -30,6 +30,21 @@ cache.delete_tag "baz"
 cache.read "foo" => nil
 ```
 
+In your controller:
+```ruby
+class PostController < ActionController::Base
+  def update
+    @post = Post.find_by_id(params[:id])
+
+    if @post.update_attributes(params)
+      expire_fragments_by_tags :post => @post.id
+    else
+      render :edit
+    end
+  end
+end
+```
+
 # Contributing
 
 1. Fork it
