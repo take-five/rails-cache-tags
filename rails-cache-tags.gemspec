@@ -4,8 +4,8 @@ require File.expand_path('../lib/rails/cache/tags/version', __FILE__)
 Gem::Specification.new do |gem|
   gem.authors       = ["Alexei Mikhailov"]
   gem.email         = %W(amikhailov83@gmail.com)
-  gem.description   = %q{TODO: Write a gem description}
-  gem.summary       = %q{TODO: Write a gem summary}
+  gem.description   = %q{Tagged caching support for Rails}
+  gem.summary       = %q{Tagged caching support for Rails}
   gem.homepage      = "https://github.com/take-five/rails-cache-tags"
 
   gem.files         = `git ls-files`.split($\)
