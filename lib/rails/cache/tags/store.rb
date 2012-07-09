@@ -1,3 +1,5 @@
+# coding: utf-8
+
 module Rails
   module Cache
     module Tags

@@ -14,10 +14,8 @@ class CacheKeyTest < ActiveSupport::TestCase
       ENV['RAILS_CACHE_ID'] = 'c99'
       assert_equal 'c99/foo', ActiveSupport::Cache.expand_cache_key(:foo)
       assert_equal 'c99/foo', ActiveSupport::Cache.expand_cache_key([:foo])
-      assert_equal 'c99/foo/bar', ActiveSupport::Cache.expand_cache_key([:foo, :bar])
       assert_equal 'nm/c99/foo', ActiveSupport::Cache.expand_cache_key(:foo, :nm)
       assert_equal 'nm/c99/foo', ActiveSupport::Cache.expand_cache_key([:foo], :nm)
-      assert_equal 'nm/c99/foo/bar', ActiveSupport::Cache.expand_cache_key([:foo, :bar], :nm)
     ensure
       ENV['RAILS_CACHE_ID'] = nil
     end
@@ -43,7 +41,7 @@ class CacheKeyTest < ActiveSupport::TestCase
     end
   end
 
-  def test_expand_cache_key_respond_to_cache_key
+  def test_respond_to_cache_key
     key = 'foo'
     def key.cache_key
       :foo_key
@@ -51,25 +49,6 @@ class CacheKeyTest < ActiveSupport::TestCase
     assert_equal 'foo_key', ActiveSupport::Cache.expand_cache_key(key)
   end
 
-  def test_expand_cache_key_array_with_something_that_responds_to_cache_key
-    key = 'foo'
-    def key.cache_key
-      :foo_key
-    end
-    assert_equal 'foo_key', ActiveSupport::Cache.expand_cache_key([key])
-  end
-
-  def test_expand_cache_key_of_nil
-    assert_equal '', ActiveSupport::Cache.expand_cache_key(nil)
-  end
-
-  def test_expand_cache_key_of_false
-    assert_equal 'false', ActiveSupport::Cache.expand_cache_key(false)
-  end
-
-  def test_expand_cache_key_of_true
-    assert_equal 'true', ActiveSupport::Cache.expand_cache_key(true)
-  end
 end
 
 class CacheStoreSettingTest < ActiveSupport::TestCase
@@ -142,8 +121,8 @@ class CacheStoreNamespaceTest < ActiveSupport::TestCase
     cache.write("foo", "bar")
     cache.write("fu", "baz")
     cache.delete_matched(/^fo/)
-    assert !cache.exist?("foo")
-    assert cache.exist?("fu")
+    assert_equal false, cache.exist?("foo")
+    assert_equal true, cache.exist?("fu")
   end
 
   def test_delete_matched_key
@@ -151,15 +130,15 @@ class CacheStoreNamespaceTest < ActiveSupport::TestCase
     cache.write("foo", "bar")
     cache.write("fu", "baz")
     cache.delete_matched(/OO/i)
-    assert !cache.exist?("foo")
-    assert cache.exist?("fu")
+    assert_equal false, cache.exist?("foo")
+    assert_equal true, cache.exist?("fu")
   end
 end
 
 # Tests the base functionality that should be identical across all cache stores.
 module CacheStoreBehavior
   def test_should_read_and_write_strings
-    assert @cache.write('foo', 'bar')
+    assert_equal true, @cache.write('foo', 'bar')
     assert_equal 'bar', @cache.read('foo')
   end
 
@@ -194,38 +173,18 @@ module CacheStoreBehavior
   end
 
   def test_should_read_and_write_hash
-    assert @cache.write('foo', {:a => "b"})
+    assert_equal true, @cache.write('foo', {:a => "b"})
     assert_equal({:a => "b"}, @cache.read('foo'))
   end
 
   def test_should_read_and_write_integer
-    assert @cache.write('foo', 1)
+    assert_equal true, @cache.write('foo', 1)
     assert_equal 1, @cache.read('foo')
   end
 
   def test_should_read_and_write_nil
-    assert @cache.write('foo', nil)
+    assert_equal true, @cache.write('foo', nil)
     assert_equal nil, @cache.read('foo')
-  end
-
-  def test_should_read_and_write_false
-    assert @cache.write('foo', false)
-    assert_equal false, @cache.read('foo')
-  end
-
-  def test_should_read_cached_numeric_from_previous_rails_versions
-    @old_cache = ActiveSupport::Cache::Entry.create( 1, Time.now )
-    assert_equal( 1, @old_cache.value )
-  end
-
-  def test_should_read_cached_hash_from_previous_rails_versions
-    @old_cache = ActiveSupport::Cache::Entry.create( {}, Time.now )
-    assert_equal( {}, @old_cache.value )
-  end
-
-  def test_should_read_cached_string_from_previous_rails_versions
-    @old_cache = ActiveSupport::Cache::Entry.create( 'string', Time.now )
-    assert_equal( 'string', @old_cache.value )
   end
 
   def test_read_multi
@@ -241,13 +200,6 @@ module CacheStoreBehavior
     @cache.write('fud', 'biz')
     sleep(0.002)
     assert_equal({"fu" => "baz"}, @cache.read_multi('foo', 'fu'))
-  end
-
-  def test_read_and_write_compressed_small_data
-    @cache.write('foo', 'bar', :compress => true)
-    raw_value = @cache.send(:read_entry, 'foo', {}).raw_value
-    assert_equal 'bar', @cache.read('foo')
-    assert_equal 'bar', Marshal.load(raw_value)
   end
 
   def test_read_and_write_compressed_large_data
@@ -297,28 +249,20 @@ module CacheStoreBehavior
 
   def test_exist
     @cache.write('foo', 'bar')
-    assert @cache.exist?('foo')
-    assert !@cache.exist?('bar')
+    assert_equal true, @cache.exist?('foo')
+    assert_equal false, @cache.exist?('bar')
   end
 
   def test_nil_exist
     @cache.write('foo', nil)
-    assert @cache.exist?('foo')
+    assert_equal true, @cache.exist?('foo')
   end
 
   def test_delete
     @cache.write('foo', 'bar')
     assert @cache.exist?('foo')
-    assert @cache.delete('foo')
+    assert_equal true, @cache.delete('foo')
     assert !@cache.exist?('foo')
-  end
-
-  def test_read_should_return_a_different_object_id_each_time_it_is_called
-    @cache.write('foo', 'bar')
-    assert_not_equal @cache.read('foo').object_id, @cache.read('foo').object_id
-    value = @cache.read('foo')
-    value << 'bingo'
-    assert_not_equal value, @cache.read('foo')
   end
 
   def test_original_store_objects_should_not_be_immutable
@@ -381,10 +325,10 @@ module CacheStoreBehavior
 
   def test_crazy_key_characters
     crazy_key = "#/:*(<+=> )&$%@?;'\"\'`~-"
-    assert @cache.write(crazy_key, "1", :raw => true)
+    assert_equal true, @cache.write(crazy_key, "1", :raw => true)
     assert_equal "1", @cache.read(crazy_key)
     assert_equal "1", @cache.fetch(crazy_key)
-    assert @cache.delete(crazy_key)
+    assert_equal true, @cache.delete(crazy_key)
     assert_equal "2", @cache.fetch(crazy_key, :raw => true) { "2" }
     assert_equal 3, @cache.increment(crazy_key)
     assert_equal 2, @cache.decrement(crazy_key)
@@ -392,50 +336,13 @@ module CacheStoreBehavior
 
   def test_really_long_keys
     key = ""
-    900.times{key << "x"}
-    assert @cache.write(key, "bar")
+    1000.times{key << "x"}
+    assert_equal true, @cache.write(key, "bar")
     assert_equal "bar", @cache.read(key)
     assert_equal "bar", @cache.fetch(key)
     assert_nil @cache.read("#{key}x")
     assert_equal({key => "bar"}, @cache.read_multi(key))
-    assert @cache.delete(key)
-  end
-end
-
-# https://rails.lighthouseapp.com/projects/8994/tickets/6225-memcachestore-cant-deal-with-umlauts-and-special-characters
-# The error is caused by charcter encodings that can't be compared with ASCII-8BIT regular expressions and by special
-# characters like the umlaut in UTF-8.
-module EncodedKeyCacheBehavior
-  if defined?(Encoding)
-    Encoding.list.each do |encoding|
-      define_method "test_#{encoding.name.underscore}_encoded_values" do
-        key = "foo".force_encoding(encoding)
-        assert @cache.write(key, "1", :raw => true)
-        assert_equal "1", @cache.read(key)
-        assert_equal "1", @cache.fetch(key)
-        assert @cache.delete(key)
-        assert_equal "2", @cache.fetch(key, :raw => true) { "2" }
-        assert_equal 3, @cache.increment(key)
-        assert_equal 2, @cache.decrement(key)
-      end
-    end
-
-    def test_common_utf8_values
-      key = "\xC3\xBCmlaut".force_encoding(Encoding::UTF_8)
-      assert @cache.write(key, "1", :raw => true)
-      assert_equal "1", @cache.read(key)
-      assert_equal "1", @cache.fetch(key)
-      assert @cache.delete(key)
-      assert_equal "2", @cache.fetch(key, :raw => true) { "2" }
-      assert_equal 3, @cache.increment(key)
-      assert_equal 2, @cache.decrement(key)
-    end
-
-    def test_retains_encoding
-      key = "\xC3\xBCmlaut".force_encoding(Encoding::UTF_8)
-      assert @cache.write(key, "1", :raw => true)
-      assert_equal Encoding::UTF_8, key.encoding
-    end
+    assert_equal true, @cache.delete(key)
   end
 end
 
@@ -446,10 +353,10 @@ module CacheDeleteMatchedBehavior
     @cache.write("foo/bar", "baz")
     @cache.write("fu/baz", "bar")
     @cache.delete_matched(/oo/)
-    assert !@cache.exist?("foo")
-    assert @cache.exist?("fu")
-    assert !@cache.exist?("foo/bar")
-    assert @cache.exist?("fu/baz")
+    assert_equal false, @cache.exist?("foo")
+    assert_equal true, @cache.exist?("fu")
+    assert_equal false, @cache.exist?("foo/bar")
+    assert_equal true, @cache.exist?("fu/baz")
   end
 end
 
@@ -478,7 +385,7 @@ module LocalCacheBehavior
     retval = @cache.with_local_cache do
       @cache.write('foo', 'bar')
     end
-    assert retval
+    assert_equal true, retval
     assert_equal 'bar', @cache.read('foo')
   end
 
@@ -566,7 +473,6 @@ class FileStoreTest < ActiveSupport::TestCase
     Dir.mkdir(cache_dir) unless File.exist?(cache_dir)
     @cache = ActiveSupport::Cache.lookup_store(:file_store, cache_dir, :expires_in => 60)
     @peek = ActiveSupport::Cache.lookup_store(:file_store, cache_dir, :expires_in => 60)
-    @cache_with_pathname = ActiveSupport::Cache.lookup_store(:file_store, Pathname.new(cache_dir), :expires_in => 60)
   end
 
   def teardown
@@ -586,83 +492,17 @@ class FileStoreTest < ActiveSupport::TestCase
     key = @cache.send(:key_file_path, "views/index?id=1")
     assert_equal "views/index?id=1", @cache.send(:file_path_key, key)
   end
-
-  def test_key_transformation_with_pathname
-    FileUtils.touch(File.join(cache_dir, "foo"))
-    key = @cache_with_pathname.send(:key_file_path, "views/index?id=1")
-    assert_equal "views/index?id=1", @cache_with_pathname.send(:file_path_key, key)
-  end
-
-  # Because file systems have a maximum filename size, filenames > max size should be split in to directories
-  # If filename is 'AAAAB', where max size is 4, the returned path should be AAAA/B
-  def test_key_transformation_max_filename_size
-    key = "#{'A' * ActiveSupport::Cache::FileStore::FILENAME_MAX_SIZE}B"
-    path = @cache.send(:key_file_path, key)
-    assert path.split('/').all? { |dir_name| dir_name.size <= ActiveSupport::Cache::FileStore::FILENAME_MAX_SIZE}
-    assert_equal 'B', File.basename(path)
-  end
-
-  # If nothing has been stored in the cache, there is a chance the cache directory does not yet exist
-  # Ensure delete_matched gracefully handles this case
-  def test_delete_matched_when_cache_directory_does_not_exist
-    assert_nothing_raised(Exception) do
-      ActiveSupport::Cache::FileStore.new('/test/cache/directory').delete_matched(/does_not_exist/)
-    end
-  end
 end
 
 class MemoryStoreTest < ActiveSupport::TestCase
   def setup
-    @record_size = Marshal.dump("aaaaaaaaaa").bytesize
-    @cache = ActiveSupport::Cache.lookup_store(:memory_store, :expires_in => 60, :size => @record_size * 10)
+    @cache = ActiveSupport::Cache.lookup_store(:memory_store, :expires_in => 60, :size => 100)
   end
 
   include CacheStoreBehavior
   include CacheDeleteMatchedBehavior
   include CacheIncrementDecrementBehavior
 
-  def test_prune_size
-    @cache.write(1, "aaaaaaaaaa") && sleep(0.001)
-    @cache.write(2, "bbbbbbbbbb") && sleep(0.001)
-    @cache.write(3, "cccccccccc") && sleep(0.001)
-    @cache.write(4, "dddddddddd") && sleep(0.001)
-    @cache.write(5, "eeeeeeeeee") && sleep(0.001)
-    @cache.read(2) && sleep(0.001)
-    @cache.read(4)
-    @cache.prune(@record_size * 3)
-    assert @cache.exist?(5)
-    assert @cache.exist?(4)
-    assert !@cache.exist?(3)
-    assert @cache.exist?(2)
-    assert !@cache.exist?(1)
-  end
-
-  def test_prune_size_on_write
-    @cache.write(1, "aaaaaaaaaa") && sleep(0.001)
-    @cache.write(2, "bbbbbbbbbb") && sleep(0.001)
-    @cache.write(3, "cccccccccc") && sleep(0.001)
-    @cache.write(4, "dddddddddd") && sleep(0.001)
-    @cache.write(5, "eeeeeeeeee") && sleep(0.001)
-    @cache.write(6, "ffffffffff") && sleep(0.001)
-    @cache.write(7, "gggggggggg") && sleep(0.001)
-    @cache.write(8, "hhhhhhhhhh") && sleep(0.001)
-    @cache.write(9, "iiiiiiiiii") && sleep(0.001)
-    @cache.write(10, "kkkkkkkkkk") && sleep(0.001)
-    @cache.read(2) && sleep(0.001)
-    @cache.read(4) && sleep(0.001)
-    @cache.write(11, "llllllllll")
-    assert @cache.exist?(11)
-    assert @cache.exist?(10)
-    assert @cache.exist?(9)
-    assert @cache.exist?(8)
-    assert @cache.exist?(7)
-    assert !@cache.exist?(6)
-    assert !@cache.exist?(5)
-    assert @cache.exist?(4)
-    assert !@cache.exist?(3)
-    assert @cache.exist?(2)
-    assert !@cache.exist?(1)
-  end
 
   def test_pruning_is_capped_at_a_max_time
     def @cache.delete_entry (*args)
@@ -675,12 +515,24 @@ class MemoryStoreTest < ActiveSupport::TestCase
     @cache.write(4, "dddddddddd") && sleep(0.001)
     @cache.write(5, "eeeeeeeeee") && sleep(0.001)
     @cache.prune(30, 0.001)
-    assert @cache.exist?(5)
-    assert @cache.exist?(4)
-    assert @cache.exist?(3)
-    assert @cache.exist?(2)
-    assert !@cache.exist?(1)
+    assert_equal true, @cache.exist?(5)
+    assert_equal true, @cache.exist?(4)
+    assert_equal true, @cache.exist?(3)
+    assert_equal true, @cache.exist?(2)
+    assert_equal false, @cache.exist?(1)
   end
+end
+
+class SynchronizedStoreTest < ActiveSupport::TestCase
+  def setup
+    ActiveSupport::Deprecation.silence do
+      @cache = ActiveSupport::Cache.lookup_store(:memory_store, :expires_in => 60)
+    end
+  end
+
+  include CacheStoreBehavior
+  include CacheDeleteMatchedBehavior
+  include CacheIncrementDecrementBehavior
 end
 
 uses_memcached 'memcached backed store' do
@@ -697,20 +549,12 @@ uses_memcached 'memcached backed store' do
     include CacheStoreBehavior
     include LocalCacheBehavior
     include CacheIncrementDecrementBehavior
-    include EncodedKeyCacheBehavior
 
     def test_raw_values
       cache = ActiveSupport::Cache.lookup_store(:mem_cache_store, :raw => true)
       cache.clear
       cache.write("foo", 2)
       assert_equal "2", cache.read("foo")
-    end
-
-    def test_raw_values_with_marshal
-      cache = ActiveSupport::Cache.lookup_store(:mem_cache_store, :raw => true)
-      cache.clear
-      cache.write("foo", Marshal.dump([]))
-      assert_equal [], cache.read("foo")
     end
 
     def test_local_cache_raw_values
@@ -721,73 +565,6 @@ uses_memcached 'memcached backed store' do
         assert_equal "2", cache.read("foo")
       end
     end
-
-    def test_local_cache_raw_values_with_marshal
-      cache = ActiveSupport::Cache.lookup_store(:mem_cache_store, :raw => true)
-      cache.clear
-      cache.with_local_cache do
-        cache.write("foo", Marshal.dump([]))
-        assert_equal [], cache.read("foo")
-      end
-    end
-  end
-end
-
-class NullStoreTest < ActiveSupport::TestCase
-  def setup
-    @cache = ActiveSupport::Cache.lookup_store(:null_store)
-  end
-
-  def test_clear
-    @cache.clear
-  end
-
-  def test_cleanup
-    @cache.cleanup
-  end
-
-  def test_write
-    assert_equal true, @cache.write("name", "value")
-  end
-
-  def test_read
-    @cache.write("name", "value")
-    assert_nil @cache.read("name")
-  end
-
-  def test_delete
-    @cache.write("name", "value")
-    assert_equal false, @cache.delete("name")
-  end
-
-  def test_increment
-    @cache.write("name", 1, :raw => true)
-    assert_nil @cache.increment("name")
-  end
-
-  def test_decrement
-    @cache.write("name", 1, :raw => true)
-    assert_nil @cache.increment("name")
-  end
-
-  def test_delete_matched
-    @cache.write("name", "value")
-    @cache.delete_matched(/name/)
-  end
-
-  def test_local_store_strategy
-    @cache.with_local_cache do
-      @cache.write("name", "value")
-      assert_equal "value", @cache.read("name")
-      @cache.delete("name")
-      assert_nil @cache.read("name")
-      @cache.write("name", "value")
-    end
-    assert_nil @cache.read("name")
-  end
-
-  def test_setting_nil_cache_store
-    assert ActiveSupport::Cache.lookup_store.class.name, ActiveSupport::Cache::NullStore.name
   end
 end
 
@@ -816,31 +593,24 @@ class CacheEntryTest < ActiveSupport::TestCase
     entry = ActiveSupport::Cache::Entry.create("raw", time, :compress => false, :expires_in => 300)
     assert_equal "raw", entry.raw_value
     assert_equal time.to_f, entry.created_at
-    assert !entry.compressed?
+    assert_nil entry.compressed?.presence
     assert_equal 300, entry.expires_in
   end
 
   def test_expired
     entry = ActiveSupport::Cache::Entry.new("value")
-    assert !entry.expired?, 'entry not expired'
+    assert_nil entry.expired?.presence
     entry = ActiveSupport::Cache::Entry.new("value", :expires_in => 60)
-    assert !entry.expired?, 'entry not expired'
+    assert_nil entry.expired?.presence
     time = Time.now + 61
     Time.stubs(:now).returns(time)
-    assert entry.expired?, 'entry is expired'
+    assert_equal true, entry.expired?
   end
 
   def test_compress_values
     entry = ActiveSupport::Cache::Entry.new("value", :compress => true, :compress_threshold => 1)
     assert_equal "value", entry.value
-    assert entry.compressed?
+    assert_equal true, entry.compressed?
     assert_equal "value", Marshal.load(Zlib::Inflate.inflate(entry.raw_value))
-  end
-
-  def test_non_compress_values
-    entry = ActiveSupport::Cache::Entry.new("value")
-    assert_equal "value", entry.value
-    assert_equal "value", Marshal.load(entry.raw_value)
-    assert !entry.compressed?
   end
 end

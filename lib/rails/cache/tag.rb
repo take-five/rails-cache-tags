@@ -24,7 +24,7 @@ module Rails
 
       attr_reader :name
 
-      # Tag constructor, accepts String, Symbol and Array
+      # Tag constructor
       def initialize(name)
         @name = ActiveSupport::Cache.expand_cache_key name
       end
