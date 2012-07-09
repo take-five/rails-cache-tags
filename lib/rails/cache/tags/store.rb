@@ -54,7 +54,7 @@ module Rails
           def write_entry_with_tags(key, entry, options) #:nodoc:
             tags = Rails::Cache::Tag.build_tags Array.wrap(options[:tags]).flatten.compact
 
-            unless tags.empty?
+            if entry && tags.present?
               current_versions = fetch_tags(tags) # => [1, 2, 3]
               entry.tags = Hash[tags.zip(current_versions).map { |tag, v| [tag.name, v || tag.increment(self)] }]
             end
