@@ -57,6 +57,8 @@ module CacheTagsBehavior
 
   def test_exists_with_tags
     @cache.write("foo", "bar", :tags => "baz")
+    assert_equal @cache.exist?("foo"), true
+
     @cache.delete_tag("baz")
 
     assert_equal @cache.exist?("foo"), false
@@ -67,9 +69,23 @@ module CacheTagsBehavior
     assert_equal 'bar', @cache.read('foo')
   end
 
-  def test_read_and_write_with_tags_hash_after_expiration
+  def test_read_and_write_with_hash_of_tags
     @cache.write("foo", "bar", :tags => {:baz => 1})
+    assert_equal 'bar', @cache.read('foo')
+
     @cache.delete_tag :baz => 1
+
+    assert_nil @cache.read('foo')
+  end
+
+  def test_read_and_write_with_tags_array_of_objects
+    tag1 = 1.day.ago
+    tag2 = 2.days.ago
+
+    @cache.write("foo", "bar", :tags => [tag1, tag2])
+    assert_equal 'bar', @cache.read('foo')
+
+    @cache.delete_tag tag2
 
     assert_nil @cache.read('foo')
   end

@@ -1,12 +1,14 @@
+require "active_support/cache"
+
 module Rails
   module Cache
     class Tag #:nodoc:all:
       KEY_PREFIX = '_tags'
 
       class << self
-        # {:post => ['1', '2', '3']} => [Tag(post:1), Tag(post:2), Tag(post:3)]
-        # {:post => 1, :user => 2} => [Tag(post:1), Tag(user:2)]
-        # ['post:1', 'post:2', 'post:3'] => [Tag(post:1), Tag(post:2), Tag(post:3)]
+        # {:post => ['1', '2', '3']} => [Tag(post/1), Tag(post/2), Tag(post/3)]
+        # {:post => 1, :user => 2} => [Tag(post/1), Tag(user/2)]
+        # ['post/1', 'post/2', 'post/3'] => [Tag(post/1), Tag(post/2), Tag(post/3)]
         def build_tags(names)
           case names
             when NilClass then nil
@@ -24,11 +26,7 @@ module Rails
 
       # Tag constructor, accepts String, Symbol and Array
       def initialize(name)
-        @name = case name
-          when String, Symbol then name
-          when Array then name.join(':')
-          else raise ArgumentError
-        end
+        @name = ActiveSupport::Cache.expand_cache_key name
       end
 
       # real cache key
