@@ -35,8 +35,6 @@ More realistic example:
 ```ruby
 class PostsController < ApplicationController
   def index
-    @posts = cache.fetch("index", :tags =>
-
     @posts = cache.read("posts") || begin
       posts_from_db = Post.all
 
