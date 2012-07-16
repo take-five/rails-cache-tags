@@ -73,6 +73,9 @@ module CacheTagsBehavior
     @cache.write("foo", "bar", :tags => {:baz => 1})
     assert_equal 'bar', @cache.read('foo')
 
+    @cache.delete_tag :baz => 2
+    assert_equal 'bar', @cache.read('foo')
+
     @cache.delete_tag :baz => 1
 
     assert_nil @cache.read('foo')
@@ -91,6 +94,6 @@ module CacheTagsBehavior
   end
 end
 
-[FileStoreTest, MemoryStoreTest, MemCacheStoreTest].each do |klass|
+[FileStoreTest, MemoryStoreTest, MemCacheStoreTest, DalliStoreTest].each do |klass|
   klass.send :include, CacheTagsBehavior
 end

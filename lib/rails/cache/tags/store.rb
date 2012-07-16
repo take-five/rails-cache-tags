@@ -4,6 +4,9 @@ module Rails
   module Cache
     module Tags
       module Store
+        # cache entry (for Dalli mainly)
+        Entry = Struct.new(:value, :tags)
+
         # patched +new+ method
         def new(*args, &block) #:nodoc:
           unless acts_like?(:cached_tags)
@@ -37,8 +40,13 @@ module Rails
           def read_entry_with_tags(key, options) #:nodoc
             entry = read_entry_without_tags(key, options)
 
-            if entry && entry.tags.present?
-              current_versions = fetch_tags(entry.tags.keys)
+            # tags are supported only for ActiveSupport::Cache::Entry or Rails::Cache::Tags::Entry
+            tags = if entry.is_a?(ActiveSupport::Cache::Entry) || entry.is_a?(Entry)
+              entry.tags
+            end
+
+            if tags.is_a?(Hash) && tags.present?
+              current_versions = fetch_tags(entry.tags.keys).values
               saved_versions   = entry.tags.values
 
               if current_versions != saved_versions
@@ -48,15 +56,27 @@ module Rails
               end
             end
 
-            entry
+            entry.is_a?(Entry) ?
+                entry.value :
+                entry
           end # def read_entry_with_tags
 
           def write_entry_with_tags(key, entry, options) #:nodoc:
             tags = Rails::Cache::Tag.build_tags Array.wrap(options[:tags]).flatten.compact
 
             if entry && tags.present?
-              current_versions = fetch_tags(tags) # => [1, 2, 3]
-              entry.tags = Hash[tags.zip(current_versions).map { |tag, v| [tag.name, v || tag.increment(self)] }]
+              options[:raw] = false # force :raw => false
+
+              # Dalli treats ActiveSupport::Cache::Entry as deprecated behavior, so we use our own Entry class
+              entry = Entry.new(entry, nil) unless entry.is_a?(ActiveSupport::Cache::Entry)
+
+              entry.tags = fetch_tags(tags).reduce(HashWithIndifferentAccess.new) do |hash, v|
+                tag, value = v
+
+                hash[tag.name] = value || tag.increment(self)
+
+                hash
+              end
             end
 
             write_entry_without_tags(key, entry, options)
@@ -64,16 +84,19 @@ module Rails
 
           private
           # fetch tags versions from store
-          # fetch ['user:1', 'post:2', 'country:2'] => [3, 4, nil]
+          # fetch ['user/1', 'post/2', 'country/2'] => [Tag('user/1') => 3, Tag('post/2') => 4, Tag('country/2') => nil]
           def fetch_tags(names) #:nodoc:
             tags = Rails::Cache::Tag.build_tags names
-            keys = tags.map(&:to_key)
-            stored = read_multi(*keys)
+            stored = read_multi(*tags.map(&:to_key))
 
-            # we should save order
-            keys.collect { |k| stored[k] }
-          end
-        end
+            # build hash
+            tags.reduce(Hash.new) do |hash, t|
+              hash[t] = stored[t.to_key]
+
+              hash
+            end
+          end # def fetch_tags
+        end # module InstanceMethods
       end # module Store
     end # module Tags
   end # module Cache

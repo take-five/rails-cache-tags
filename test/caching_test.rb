@@ -3,138 +3,6 @@ $:.unshift(File.dirname(__FILE__))
 require 'test_helper'
 require 'logger'
 
-class CacheKeyTest < ActiveSupport::TestCase
-  def test_expand_cache_key
-    assert_equal '1/2/true', ActiveSupport::Cache.expand_cache_key([1, '2', true])
-    assert_equal 'name/1/2/true', ActiveSupport::Cache.expand_cache_key([1, '2', true], :name)
-  end
-
-  def test_expand_cache_key_with_rails_cache_id
-    begin
-      ENV['RAILS_CACHE_ID'] = 'c99'
-      assert_equal 'c99/foo', ActiveSupport::Cache.expand_cache_key(:foo)
-      assert_equal 'c99/foo', ActiveSupport::Cache.expand_cache_key([:foo])
-      assert_equal 'nm/c99/foo', ActiveSupport::Cache.expand_cache_key(:foo, :nm)
-      assert_equal 'nm/c99/foo', ActiveSupport::Cache.expand_cache_key([:foo], :nm)
-    ensure
-      ENV['RAILS_CACHE_ID'] = nil
-    end
-  end
-
-  def test_expand_cache_key_with_rails_app_version
-    begin
-      ENV['RAILS_APP_VERSION'] = 'rails3'
-      assert_equal 'rails3/foo', ActiveSupport::Cache.expand_cache_key(:foo)
-    ensure
-      ENV['RAILS_APP_VERSION'] = nil
-    end
-  end
-
-  def test_expand_cache_key_rails_cache_id_should_win_over_rails_app_version
-    begin
-      ENV['RAILS_CACHE_ID'] = 'c99'
-      ENV['RAILS_APP_VERSION'] = 'rails3'
-      assert_equal 'c99/foo', ActiveSupport::Cache.expand_cache_key(:foo)
-    ensure
-      ENV['RAILS_CACHE_ID'] = nil
-      ENV['RAILS_APP_VERSION'] = nil
-    end
-  end
-
-  def test_respond_to_cache_key
-    key = 'foo'
-    def key.cache_key
-      :foo_key
-    end
-    assert_equal 'foo_key', ActiveSupport::Cache.expand_cache_key(key)
-  end
-
-end
-
-class CacheStoreSettingTest < ActiveSupport::TestCase
-  def test_file_fragment_cache_store
-    store = ActiveSupport::Cache.lookup_store :file_store, "/path/to/cache/directory"
-    assert_kind_of(ActiveSupport::Cache::FileStore, store)
-    assert_equal "/path/to/cache/directory", store.cache_path
-  end
-
-  def test_mem_cache_fragment_cache_store
-    MemCache.expects(:new).with(%w[localhost], {})
-    store = ActiveSupport::Cache.lookup_store :mem_cache_store, "localhost"
-    assert_kind_of(ActiveSupport::Cache::MemCacheStore, store)
-  end
-
-  def test_mem_cache_fragment_cache_store_with_given_mem_cache
-    mem_cache = MemCache.new
-    MemCache.expects(:new).never
-    store = ActiveSupport::Cache.lookup_store :mem_cache_store, mem_cache
-    assert_kind_of(ActiveSupport::Cache::MemCacheStore, store)
-  end
-
-  def test_mem_cache_fragment_cache_store_with_given_mem_cache_like_object
-    MemCache.expects(:new).never
-    memcache = Object.new
-    def memcache.get() true end
-    store = ActiveSupport::Cache.lookup_store :mem_cache_store, memcache
-    assert_kind_of(ActiveSupport::Cache::MemCacheStore, store)
-  end
-
-  def test_mem_cache_fragment_cache_store_with_multiple_servers
-    MemCache.expects(:new).with(%w[localhost 192.168.1.1], {})
-    store = ActiveSupport::Cache.lookup_store :mem_cache_store, "localhost", '192.168.1.1'
-    assert_kind_of(ActiveSupport::Cache::MemCacheStore, store)
-  end
-
-  def test_mem_cache_fragment_cache_store_with_options
-    MemCache.expects(:new).with(%w[localhost 192.168.1.1], { :timeout => 10 })
-    store = ActiveSupport::Cache.lookup_store :mem_cache_store, "localhost", '192.168.1.1', :namespace => 'foo', :timeout => 10
-    assert_kind_of(ActiveSupport::Cache::MemCacheStore, store)
-    assert_equal 'foo', store.options[:namespace]
-  end
-
-  def test_object_assigned_fragment_cache_store
-    store = ActiveSupport::Cache.lookup_store ActiveSupport::Cache::FileStore.new("/path/to/cache/directory")
-    assert_kind_of(ActiveSupport::Cache::FileStore, store)
-    assert_equal "/path/to/cache/directory", store.cache_path
-  end
-end
-
-class CacheStoreNamespaceTest < ActiveSupport::TestCase
-  def test_static_namespace
-    cache = ActiveSupport::Cache.lookup_store(:memory_store, :namespace => "tester")
-    cache.write("foo", "bar")
-    assert_equal "bar", cache.read("foo")
-    assert_equal "bar", cache.instance_variable_get(:@data)["tester:foo"].value
-  end
-
-  def test_proc_namespace
-    test_val = "tester"
-    proc = lambda{test_val}
-    cache = ActiveSupport::Cache.lookup_store(:memory_store, :namespace => proc)
-    cache.write("foo", "bar")
-    assert_equal "bar", cache.read("foo")
-    assert_equal "bar", cache.instance_variable_get(:@data)["tester:foo"].value
-  end
-
-  def test_delete_matched_key_start
-    cache = ActiveSupport::Cache.lookup_store(:memory_store, :namespace => "tester")
-    cache.write("foo", "bar")
-    cache.write("fu", "baz")
-    cache.delete_matched(/^fo/)
-    assert_equal false, cache.exist?("foo")
-    assert_equal true, cache.exist?("fu")
-  end
-
-  def test_delete_matched_key
-    cache = ActiveSupport::Cache.lookup_store(:memory_store, :namespace => "foo")
-    cache.write("foo", "bar")
-    cache.write("fu", "baz")
-    cache.delete_matched(/OO/i)
-    assert_equal false, cache.exist?("foo")
-    assert_equal true, cache.exist?("fu")
-  end
-end
-
 # Tests the base functionality that should be identical across all cache stores.
 module CacheStoreBehavior
   def test_should_read_and_write_strings
@@ -566,24 +434,37 @@ uses_memcached 'memcached backed store' do
       end
     end
   end
-end
 
-class CacheStoreLoggerTest < ActiveSupport::TestCase
-  def setup
-    @cache = ActiveSupport::Cache.lookup_store(:memory_store)
+  class DalliStoreTest < ActiveSupport::TestCase
+    def setup
+      @cache = ActiveSupport::Cache.lookup_store(:dalli_store, :expires_in => 60)
+      @peek = ActiveSupport::Cache.lookup_store(:dalli_store)
+      @data = @cache.instance_variable_get(:@data)
+      @cache.clear
+      @cache.silence!
+    end
 
-    @buffer = StringIO.new
-    @cache.logger = Logger.new(@buffer)
-  end
+    def test_should_read_and_write_strings
+      assert_equal true, @cache.write('foo', 'bar')
+      assert_equal 'bar', @cache.read('foo')
+    end
 
-  def test_logging
-    @cache.fetch('foo') { 'bar' }
-    assert_present @buffer.string
-  end
+    def test_should_read_and_write_hash
+      assert_equal true, @cache.write('foo', {:a => "b"})
+      assert_equal({:a => "b"}, @cache.read('foo'))
+    end
 
-  def test_mute_logging
-    @cache.mute { @cache.fetch('foo') { 'bar' } }
-    assert_blank @buffer.string
+    def test_should_read_and_write_integer
+      assert_equal true, @cache.write('foo', 1)
+      assert_equal 1, @cache.read('foo')
+    end
+
+    def test_read_multi
+      @cache.write('foo', 'bar')
+      @cache.write('fu', 'baz')
+      @cache.write('fud', 'biz')
+      assert_equal({"foo" => "bar", "fu" => "baz"}, @cache.read_multi('foo', 'fu'))
+    end
   end
 end
 
