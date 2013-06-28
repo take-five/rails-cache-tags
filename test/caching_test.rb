@@ -72,9 +72,7 @@ module CacheStoreBehavior
 
   def test_read_and_write_compressed_large_data
     @cache.write('foo', 'bar', :compress => true, :compress_threshold => 2)
-    raw_value = @cache.send(:read_entry, 'foo', {}).raw_value
     assert_equal 'bar', @cache.read('foo')
-    assert_equal 'bar', Marshal.load(Zlib::Inflate.inflate(raw_value))
   end
 
   def test_read_and_write_compressed_nil
@@ -117,8 +115,8 @@ module CacheStoreBehavior
 
   def test_exist
     @cache.write('foo', 'bar')
-    assert_equal true, @cache.exist?('foo')
-    assert_equal false, @cache.exist?('bar')
+    assert @cache.exist?('foo')
+    assert !@cache.exist?('bar')
   end
 
   def test_nil_exist
@@ -221,10 +219,10 @@ module CacheDeleteMatchedBehavior
     @cache.write("foo/bar", "baz")
     @cache.write("fu/baz", "bar")
     @cache.delete_matched(/oo/)
-    assert_equal false, @cache.exist?("foo")
-    assert_equal true, @cache.exist?("fu")
-    assert_equal false, @cache.exist?("foo/bar")
-    assert_equal true, @cache.exist?("fu/baz")
+    assert !@cache.exist?("foo")
+    assert @cache.exist?("fu")
+    assert !@cache.exist?("foo/bar")
+    assert @cache.exist?("fu/baz")
   end
 end
 
@@ -383,11 +381,11 @@ class MemoryStoreTest < ActiveSupport::TestCase
     @cache.write(4, "dddddddddd") && sleep(0.001)
     @cache.write(5, "eeeeeeeeee") && sleep(0.001)
     @cache.prune(30, 0.001)
-    assert_equal true, @cache.exist?(5)
-    assert_equal true, @cache.exist?(4)
-    assert_equal true, @cache.exist?(3)
-    assert_equal true, @cache.exist?(2)
-    assert_equal false, @cache.exist?(1)
+    assert @cache.exist?(5)
+    assert @cache.exist?(4)
+    assert @cache.exist?(3)
+    assert @cache.exist?(2)
+    assert !@cache.exist?(1)
   end
 end
 
@@ -469,29 +467,20 @@ uses_memcached 'memcached backed store' do
 end
 
 class CacheEntryTest < ActiveSupport::TestCase
-  def test_create_raw_entry
-    time = Time.now
-    entry = ActiveSupport::Cache::Entry.create("raw", time, :compress => false, :expires_in => 300)
-    assert_equal "raw", entry.raw_value
-    assert_equal time.to_f, entry.created_at
-    assert_nil entry.compressed?.presence
-    assert_equal 300, entry.expires_in
-  end
-
   def test_expired
     entry = ActiveSupport::Cache::Entry.new("value")
-    assert_nil entry.expired?.presence
+    assert !entry.expired?, 'entry not expired'
     entry = ActiveSupport::Cache::Entry.new("value", :expires_in => 60)
-    assert_nil entry.expired?.presence
+    assert !entry.expired?, 'entry not expired'
     time = Time.now + 61
     Time.stubs(:now).returns(time)
-    assert_equal true, entry.expired?
+    assert entry.expired?, 'entry is expired'
   end
 
   def test_compress_values
-    entry = ActiveSupport::Cache::Entry.new("value", :compress => true, :compress_threshold => 1)
-    assert_equal "value", entry.value
-    assert_equal true, entry.compressed?
-    assert_equal "value", Marshal.load(Zlib::Inflate.inflate(entry.raw_value))
+    value = "value" * 100
+    entry = ActiveSupport::Cache::Entry.new(value, :compress => true, :compress_threshold => 1)
+    assert_equal value, entry.value
+    assert(value.bytesize > entry.size, "value is compressed")
   end
 end
