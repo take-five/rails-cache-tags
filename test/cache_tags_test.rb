@@ -57,11 +57,11 @@ module CacheTagsBehavior
 
   def test_exists_with_tags
     @cache.write("foo", "bar", :tags => "baz")
-    assert_equal @cache.exist?("foo"), true
+    assert @cache.exist?("foo")
 
     @cache.delete_tag("baz")
 
-    assert_equal @cache.exist?("foo"), false
+    assert !@cache.exist?("foo")
   end
 
   def test_read_and_write_with_tags_hash
