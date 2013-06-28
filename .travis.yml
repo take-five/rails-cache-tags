@@ -1,0 +1,10 @@
+language: ruby
+rvm:
+  - 1.9.3
+  - 2.0.0
+
+before_script: "rake appraisal:install"
+script: "rake appraisal test"
+notifications:
+  recipients:
+    - amikhailov83@gmail.com
