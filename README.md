@@ -1,4 +1,4 @@
-# Synopsys
+# Rails Cache Tags [![Build Status](https://api.travis-ci.org/take-five/rails-cache-tags.png)](https://travis-ci.org/take-five/rails-cache-tags)
 
 Tagged caching support within your Rails application. Tested against Rails 3.0, Rails 3.1 and Rails 3.2
 [Dalli](https://github.com/mperham/dalli) store is also supported!
