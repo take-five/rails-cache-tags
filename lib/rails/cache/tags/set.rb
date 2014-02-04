@@ -14,7 +14,7 @@ module Rails
         end
 
         def current(tag)
-          @cache.fetch(tag.to_key) { 1 }.to_i
+          @cache.fetch_without_tags(tag.to_key) { 1 }.to_i
         end
 
         def expire(tag)
