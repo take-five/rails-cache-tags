@@ -1,25 +1,25 @@
-require "active_support/cache"
+require 'active_support'
+require 'active_support/cache'
 
-require "action_controller"
+require 'rails/cache/tags/store'
 
-require "rails/cache/tag"
-require "rails/cache/tags/store"
-
-# Patch ActiveSupport common store
 module ActiveSupport
   module Cache
-    class Store
-      extend Rails::Cache::Tags::Store
-    end
-
     class Entry
       attr_accessor :tags
+    end
+
+    # patch built-in stores
+    [:FileStore, :MemCacheStore, :MemoryStore].each do |const|
+      if const_defined?(const)
+        const_get(const).send(:include, Rails::Cache::Tags::Store)
+      end
     end
   end
 end
 
 # Patch ActionDispatch
-class ActionController::Base < ActionController::Metal
+ActiveSupport.on_load(:action_controller) do
   def expire_fragments_by_tags *args
     return unless cache_configured?
 
@@ -30,13 +30,13 @@ end
 
 # Patch Dalli store
 begin
-  require "dalli"
-  require "dalli/version"
+  require 'dalli'
+  require 'dalli/version'
 
   if Dalli::VERSION.to_f > 2
-    require "active_support/cache/dalli_store"
+    require 'active_support/cache/dalli_store'
 
-    ActiveSupport::Cache::DalliStore.extend(Rails::Cache::Tags::Store)
+    ActiveSupport::Cache::DalliStore.send(:include, Rails::Cache::Tags::Store)
   end
 rescue LoadError, NameError
   # ignore

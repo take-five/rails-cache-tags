@@ -4,7 +4,7 @@ rvm:
   - 2.0.0
 
 before_script: "rake appraisal:install"
-script: "rake appraisal test"
+script: "rake appraisal spec"
 notifications:
   recipients:
     - amikhailov83@gmail.com
