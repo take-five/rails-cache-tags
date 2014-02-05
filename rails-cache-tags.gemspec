@@ -2,17 +2,19 @@
 require File.expand_path('../lib/rails/cache/tags/version', __FILE__)
 
 Gem::Specification.new do |gem|
+  gem.name          = 'rails-cache-tags'
+  gem.version       = Rails::Cache::Tags::VERSION
+
   gem.authors       = ['Alexei Mikhailov']
   gem.email         = %W(amikhailov83@gmail.com)
   gem.description   = %q{Tagged caching support for Rails}
   gem.summary       = %q{Tagged caching support for Rails}
   gem.homepage      = 'https://github.com/take-five/rails-cache-tags'
 
-  gem.files         = %W(LICENSE README.md lib/rails-cache-tags.rb lib/rails/cache/tag.rb rails-cache-tags.gemspec lib/rails/cache/tags/store.rb lib/rails/cache/tags/version.rb test/cache_tags_test.rb test/caching_test.rb test/test_helper.rb)
-  gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
-  gem.name          = 'rails-cache-tags'
+
+  gem.files         = `git ls-files -- lib/*`.split("\n")
+  gem.test_files    = `git ls-files -- spec/*`.split("\n")
   gem.require_paths = %W(lib)
-  gem.version       = Rails::Cache::Tags::VERSION
 
   gem.add_dependency 'activesupport', '>= 3.0'
 
