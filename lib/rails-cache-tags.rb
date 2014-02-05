@@ -12,7 +12,11 @@ module ActiveSupport
     # patch built-in stores
     [:FileStore, :MemCacheStore, :MemoryStore].each do |const|
       if const_defined?(const)
-        const_get(const).send(:include, Rails::Cache::Tags::Store)
+        begin
+          const_get(const).send(:include, Rails::Cache::Tags::Store)
+        rescue LoadError, NameError
+          # ignore
+        end
       end
     end
   end
