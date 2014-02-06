@@ -22,14 +22,11 @@ module ActiveSupport
   end
 end
 
-# Patch ActionDispatch
+# Patch ActionController
 ActiveSupport.on_load(:action_controller) do
-  def expire_fragments_by_tags *args
-    return unless cache_configured?
+  require 'rails/cache/tags/action_controller'
 
-    cache_store.delete_tag *args
-  end
-  alias expire_fragments_by_tag expire_fragments_by_tags
+  ActionController::Base.send(:include, Rails::Cache::Tags::ActionController)
 end
 
 # Patch Dalli store
