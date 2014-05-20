@@ -13,7 +13,6 @@ module Rails
         extend ActiveSupport::Concern
 
         included do
-          alias_method_chain :initialize, :tags
           alias_method_chain :exist?, :tags
           alias_method_chain :read, :tags
           alias_method_chain :read_multi, :tags
@@ -24,17 +23,13 @@ module Rails
         # cache entry (for Dalli mainly)
         Entry = Struct.new(:value, :tags)
 
-        attr_reader :tag_set
-
-        def initialize_with_tags(*args)
-          initialize_without_tags(*args)
-
-          @tag_set = Set.new(self)
+        def tag_set
+          @tag_set ||= Set.new(self)
         end
 
         def read_with_tags(name, options = nil)
           result = read_without_tags(name, options)
-          entry = @tag_set.check(result)
+          entry = tag_set.check(result)
 
           if entry
             entry
@@ -66,7 +61,7 @@ module Rails
           result = read_multi_without_tags(*names)
 
           names.each_with_object(Hash.new) do |name, hash|
-            hash[name.to_s] = @tag_set.check(result[name.to_s])
+            hash[name.to_s] = tag_set.check(result[name.to_s])
           end
         end
 
@@ -84,7 +79,7 @@ module Rails
             result
           else # only :read occured
             # read occured, and result is fresh
-            if (entry = @tag_set.check(result))
+            if (entry = tag_set.check(result))
               entry
             else # result is stale
               delete(name)

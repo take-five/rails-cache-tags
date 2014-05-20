@@ -1,44 +1,47 @@
+# coding: utf-8
 require 'active_support'
+require 'active_support/concern'
 require 'active_support/cache'
-
 require 'rails/cache/tags/store'
 
-module ActiveSupport
+module Rails
   module Cache
-    class Entry
-      attr_accessor :tags
-    end
+    module Tags
+      module Extensions
+        module ActiveSupportCache
+          extend ActiveSupport::Concern
 
-    # patch built-in stores
-    [:FileStore, :MemCacheStore, :MemoryStore].each do |const|
-      if const_defined?(const)
-        begin
-          const_get(const).send(:include, Rails::Cache::Tags::Store)
-        rescue LoadError, NameError
-          # ignore
+          included do
+            class << self
+              alias_method :old_lookup_store, :lookup_store
+
+              def lookup_store(*store_option)
+                store = old_lookup_store(*store_option)
+                store.class.send :include, Rails::Cache::Tags::Store
+
+                store
+              end
+            end
+          end
+        end
+
+        module ActiveSupportCacheEntry
+          extend ActiveSupport::Concern
+
+          included do
+            attr_accessor :tags
+          end
         end
       end
     end
   end
 end
 
-# Patch ActionController
+::ActiveSupport::Cache::Entry.send :include, ::Rails::Cache::Tags::Extensions::ActiveSupportCacheEntry
+::ActiveSupport::Cache.send :include, ::Rails::Cache::Tags::Extensions::ActiveSupportCache
+
 ActiveSupport.on_load(:action_controller) do
   require 'rails/cache/tags/action_controller'
 
-  ActionController::Base.send(:include, Rails::Cache::Tags::ActionController)
-end
-
-# Patch Dalli store
-begin
-  require 'dalli'
-  require 'dalli/version'
-
-  if Dalli::VERSION.to_f > 2
-    require 'active_support/cache/dalli_store'
-
-    ActiveSupport::Cache::DalliStore.send(:include, Rails::Cache::Tags::Store)
-  end
-rescue LoadError, NameError
-  # ignore
+  ::ActionController::Base.send(:include, Rails::Cache::Tags::ActionController)
 end
