@@ -23,7 +23,7 @@ module Rails
 
         # Tag constructor
         def initialize(name)
-          @name = ActiveSupport::Cache.expand_cache_key name
+          @name = ActiveSupport::Cache.expand_cache_key(name)
         end
 
         # real cache key

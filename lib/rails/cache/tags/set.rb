@@ -6,8 +6,6 @@ module Rails
   module Cache
     module Tags
       class Set
-        KEY_PREFIX = '_tags'
-
         # @param [ActiveSupport::Cache::Store] cache
         def initialize(cache)
           @cache = cache
