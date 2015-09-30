@@ -34,7 +34,7 @@ module Rails
           if entry
             entry
           else
-            delete(name)
+            delete(name, options)
 
             nil
           end
@@ -54,12 +54,13 @@ module Rails
         end
 
         def exist_with_tags?(name, options = nil)
-          exist_without_tags?(name, options) && !read(name).nil?
+          exist_without_tags?(name, options) && !read(name, options).nil?
         end
 
         def read_multi_with_tags(*names)
           result = read_multi_without_tags(*names)
 
+          names.extract_options!
           names.each_with_object(Hash.new) do |name, hash|
             hash[name.to_s] = tag_set.check(result[name.to_s])
           end
@@ -82,7 +83,7 @@ module Rails
             if (entry = tag_set.check(result))
               entry
             else # result is stale
-              delete(name)
+              delete(name, options)
               fetch(name, options) { yield }
             end
           end
