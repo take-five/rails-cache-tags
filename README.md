@@ -38,7 +38,7 @@ class PostsController < ApplicationController
     @posts = cache.read("posts") || begin
       posts_from_db = Post.all
 
-      cache.write "posts", :tags => {:post => posts_from_db.map(&:id)}
+      cache.write "posts", posts_from_db, :tags => {:post => posts_from_db.map(&:id)}
 
       posts_from_db
     end
