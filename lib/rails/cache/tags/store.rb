@@ -29,6 +29,7 @@ module Rails
 
         def read_with_tags(name, options = nil)
           result = read_without_tags(name, options)
+          return if result.nil?
           entry = tag_set.check(result)
 
           if entry

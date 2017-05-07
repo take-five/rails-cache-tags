@@ -50,6 +50,11 @@ describe Rails::Cache::Tags do
       assert_blank 'foo'
     end
 
+    it 'does not delete a nonexistent key' do
+      expect(cache).not_to receive(:delete).with('not_exist_key', options)
+      expect(cache.read('not_exist_key', options)).to eq nil
+    end
+
     #it 'does not read a key if it is expired' do
     #  ttl = 0.01
     #  # dalli does not support float TTLs
