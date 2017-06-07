@@ -67,58 +67,144 @@ describe Rails::Cache::Tags do
     #  assert_blank 'foo'
     #end
 
-    it 'reads and writes a key if hash of tags given' do
-      cache.write('foo', object, options.merge(:tags => {:baz => 1}))
-      assert_read 'foo', object
+    context 'when no tags local cache' do
+      before do
+        RequestStore.end!
+      end
 
-      cache.delete_tag :baz => 2
-      assert_read 'foo', object
+      it 'reads and writes a key if hash of tags given' do
+        cache.write('foo', object, options.merge(:tags => {:baz => 1}))
+        assert_read 'foo', object
 
-      cache.delete_tag :baz => 1
-      assert_blank 'foo'
+        cache.delete_tag :baz => 2
+        assert_read 'foo', object
+
+        cache.delete_tag :baz => 1
+        assert_blank 'foo'
+      end
+
+      it 'reads and writes a key if array of object given as tags' do
+        tag1 = 1.day.ago
+        tag2 = 2.days.ago
+
+        cache.write 'foo', object, options.merge(:tags => [tag1, tag2])
+        assert_read 'foo', object
+
+        cache.delete_tag tag1
+        assert_blank 'foo'
+      end
+
+      it 'reads multiple keys with tags check' do
+        cache.write 'foo', object, options.merge(:tags => :bar)
+        cache.write 'bar', object, options.merge(:tags => :baz)
+
+        assert_read 'foo', object
+        assert_read 'bar', object
+
+        cache.delete_tag :bar
+
+        assert_blank 'foo'
+        assert_read 'bar', object
+
+        expect(cache.read_multi('foo', 'bar', options)).to eq('foo' => nil, 'bar' => object)
+      end
+
+      it 'fetches key with tag check' do
+        cache.write 'foo', object, options.merge(:tags => :bar)
+
+        expect(cache.fetch('foo', options) { 'baz' }).to eq object
+        expect(cache.fetch('foo', options)).to eq object
+
+        cache.delete_tag :bar
+
+        expect(cache.fetch('foo', options)).to be_nil
+        expect(cache.fetch('foo', options.merge(:tags => :bar)) { object }).to eq object
+        assert_read 'foo', object
+
+        cache.delete_tag :bar
+
+        assert_blank 'foo'
+      end
     end
 
-    it 'reads and writes a key if array of object given as tags' do
-      tag1 = 1.day.ago
-      tag2 = 2.days.ago
+    context 'when tags local cache' do
+      before do
+        RequestStore.clear!
+        RequestStore.begin!
+      end
 
-      cache.write 'foo', object, options.merge(:tags => [tag1, tag2])
-      assert_read 'foo', object
+      after do
+        RequestStore.end!
+      end
 
-      cache.delete_tag tag1
-      assert_blank 'foo'
-    end
+      it 'reads and writes a key if hash of tags given' do
+        cache.write('foo', object, options.merge(:tags => {:baz => 1}))
+        assert_read 'foo', object
 
-    it 'reads multiple keys with tags check' do
-      cache.write 'foo', object, options.merge(:tags => :bar)
-      cache.write 'bar', object, options.merge(:tags => :baz)
+        cache.delete_tag :baz => 2
+        assert_read 'foo', object
 
-      assert_read 'foo', object
-      assert_read 'bar', object
+        cache.delete_tag :baz => 1
+        assert_read 'foo', object
 
-      cache.delete_tag :bar
+        cache.tag_set.send(:tags_cache).clear
+        assert_blank 'foo'
+      end
 
-      assert_blank 'foo'
-      assert_read 'bar', object
+      it 'reads and writes a key if array of object given as tags' do
+        tag1 = 1.day.ago
+        tag2 = 2.days.ago
 
-      expect(cache.read_multi('foo', 'bar', options)).to eq('foo' => nil, 'bar' => object)
-    end
+        cache.write 'foo', object, options.merge(:tags => [tag1, tag2])
+        assert_read 'foo', object
 
-    it 'fetches key with tag check' do
-      cache.write 'foo', object, options.merge(:tags => :bar)
+        cache.delete_tag tag1
+        assert_read 'foo', object
 
-      expect(cache.fetch('foo', options) { 'baz' }).to eq object
-      expect(cache.fetch('foo', options)).to eq object
+        cache.tag_set.send(:tags_cache).clear
+        assert_blank 'foo'
+      end
 
-      cache.delete_tag :bar
+      it 'reads multiple keys with tags check' do
+        cache.write 'foo', object, options.merge(:tags => :bar)
+        cache.write 'bar', object, options.merge(:tags => :baz)
 
-      expect(cache.fetch('foo', options)).to be_nil
-      expect(cache.fetch('foo', options.merge(:tags => :bar)) { object }).to eq object
-      assert_read 'foo', object
+        assert_read 'foo', object
+        assert_read 'bar', object
 
-      cache.delete_tag :bar
+        cache.delete_tag :bar
 
-      assert_blank 'foo'
+        assert_read 'foo', object
+
+        cache.tag_set.send(:tags_cache).clear
+        assert_blank 'foo'
+        assert_read 'bar', object
+
+        expect(cache.read_multi('foo', 'bar', options)).to eq('foo' => nil, 'bar' => object)
+      end
+
+      it 'fetches key with tag check' do
+        cache.write 'foo', object, options.merge(:tags => :bar)
+
+        expect(cache.fetch('foo', options) { 'baz' }).to eq object
+        expect(cache.fetch('foo', options)).to eq object
+
+        cache.delete_tag :bar
+
+        expect(cache.fetch('foo', options)).to eq object
+
+        cache.tag_set.send(:tags_cache).clear
+
+        expect(cache.fetch('foo', options)).to be_nil
+        expect(cache.fetch('foo', options.merge(:tags => :bar)) { object }).to eq object
+        assert_read 'foo', object
+
+        cache.delete_tag :bar
+        assert_read 'foo', object
+
+        cache.tag_set.send(:tags_cache).clear
+        assert_blank 'foo'
+      end
     end
   end
 

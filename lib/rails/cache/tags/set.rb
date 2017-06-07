@@ -1,24 +1,28 @@
 # coding: utf-8
 
 require 'rails/cache/tags/tag'
+require 'rails/cache/tags/local_cache'
 
 module Rails
   module Cache
     module Tags
       class Set
-        # @param [ActiveSupport::Cache::Store] cache
-        def initialize(cache)
-          @cache = cache
+        # @param [ActiveSupport::Cache::Store] store
+        def initialize(store)
+          @store = store
+          @tags_cache = LocalCache.new
         end
 
         def current(tag)
-          @cache.fetch_without_tags(tag.to_key) { 1 }.to_i
+          key = tag.to_key
+          @tags_cache.fetch(key) do
+            @store.fetch_without_tags(key) { 1 }.to_i
+          end
         end
 
         def expire(tag)
           version = current(tag) + 1
-
-          @cache.write_without_tags(tag.to_key, version, :expires_in => nil)
+          @store.write_without_tags(tag.to_key, version, :expires_in => nil)
 
           version
         end
@@ -30,14 +34,35 @@ module Rails
           tags = Tag.build(entry.tags.keys)
 
           saved_versions = entry.tags.values.map(&:to_i)
-          current_versions = read_multi(tags).values.map(&:to_i)
 
-          saved_versions == current_versions ? entry.value : nil
+          saved_versions == current_versions(tags) ? entry.value : nil
         end
 
         private
-        def read_multi(tags)
-          @cache.read_multi_without_tags(*Array.wrap(tags).map(&:to_key))
+
+        def current_versions(tags)
+          keys = Array.wrap(tags).map(&:to_key)
+          versions = keys.inject({}) do |memo, key|
+            if @tags_cache.exist?(key)
+              memo[key] = @tags_cache[key]
+            else
+              memo[key] = nil
+            end
+
+            memo
+          end
+
+          keys = versions.map { |key, version| key if version.nil? }.compact
+          @store.read_multi_without_tags(*keys).each do |key, value|
+            @tags_cache[key] = value
+            versions[key] = value
+          end if keys.present?
+
+          versions.values.map(&:to_i)
+        end
+
+        def tags_cache
+          @tags_cache
         end
       end # class Set
     end # module Tags
