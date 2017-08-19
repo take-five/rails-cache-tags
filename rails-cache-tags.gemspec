@@ -17,6 +17,7 @@ Gem::Specification.new do |gem|
   gem.require_paths = %W(lib)
 
   gem.add_dependency 'activesupport', '>= 3.0'
+  gem.add_dependency 'request_store'
 
   gem.add_development_dependency 'i18n'
   gem.add_development_dependency 'appraisal'
