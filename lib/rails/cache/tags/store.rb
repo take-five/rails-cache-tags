@@ -13,11 +13,20 @@ module Rails
         extend ActiveSupport::Concern
 
         included do
-          alias_method_chain :exist?, :tags
-          alias_method_chain :read, :tags
-          alias_method_chain :read_multi, :tags
-          alias_method_chain :write, :tags
-          alias_method_chain :fetch, :tags
+          alias_method :exist_without_tags?, :exist?
+          alias_method :exist?, :exist_with_tags?
+
+          alias_method :read_without_tags, :read
+          alias_method :read, :read_with_tags
+
+          alias_method :read_multi_without_tags, :read_multi
+          alias_method :read_multi, :read_multi_with_tags
+
+          alias_method :write_without_tags, :write
+          alias_method :write, :write_with_tags
+
+          alias_method :fetch_without_tags, :fetch
+          alias_method :fetch, :fetch_with_tags
         end
 
         # cache entry (for Dalli mainly)
