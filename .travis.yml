@@ -1,11 +1,12 @@
 language: ruby
 rvm:
-  - 1.9.3
-  - 2.0.0
+  - 2.2.2
+  - 2.3.0
 services:
   - memcached
-before_script: "rake appraisal:install"
-script: "rake appraisal spec"
+before_script: rake appraisal:install
+install: bundle install
+script: bundle exec rake spec
 notifications:
   recipients:
     - amikhailov83@gmail.com
